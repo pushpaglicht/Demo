@@ -1,0 +1,232 @@
+# ========================================================================================
+# FILE: main.tf
+# PURPOSE: Multi-Cloud Infrastructure Core Orchestration Blueprint
+# ========================================================================================
+
+# ----------------------------------------------------------------------------------------
+# 1. AWS STORAGE TIER AND CROSS-REGION OBJECT REPLICATION ENGINE
+# ----------------------------------------------------------------------------------------
+
+# Primary File Ingestion Container (Frankfurt Region)
+resource "aws_s3_bucket" "source" {
+  provider = aws.source_region
+  bucket   = "amity-s3-replication-source-bucket"
+}
+
+# Mandatory Version Control for Source Bucket Tracking Loops
+resource "aws_s3_bucket_versioning" "source_versioning" {
+  provider = aws.source_region
+  bucket   = aws_s3_bucket.source.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Disaster Recovery Target Backup Container (California Region)
+resource "aws_s3_bucket" "destination" {
+  provider = aws.destination_region
+  bucket   = "amity-s3-replication-dest-bucket"
+}
+
+# Mandatory Version Control for Target Bucket Mirroring
+resource "aws_s3_bucket_versioning" "destination_versioning" {
+  provider = aws.destination_region
+  bucket   = aws_s3_bucket.destination.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Trusted IAM Identity Proxy Role Assignment
+resource "aws_iam_role" "replication_role" {
+  name = "amity-s3-replication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = { Service = "s3.amazonaws.com" }
+      }
+    ]
+  })
+}
+
+# Granular IAM Least-Privilege Permissions Policy Matrix
+resource "aws_iam_policy" "replication_policy" {
+  name = "amity-s3-replication-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["s3:GetReplicationConfiguration", "s3:ListBucket"]
+        Effect   = "Allow"
+        Resource = [aws_s3_bucket.source.arn]
+      },
+      {
+        Action   = ["s3:GetObjectVersionForReplication", "s3:GetObjectVersionAcl", "s3:GetObjectVersionTagging"]
+        Effect   = "Allow"
+        Resource = ["${aws_s3_bucket.source.arn}/*"]
+      },
+      {
+        Action   = ["s3:ReplicateObject", "s3:ReplicateDelete", "s3:ReplicateTags"]
+        Effect   = "Allow"
+        Resource = ["${aws_s3_bucket.destination.arn}/*"]
+      }
+    ]
+  })
+}
+
+# Policy Attachment Constraint Node
+resource "aws_iam_role_policy_attachment" "replication_attach" {
+  role       = aws_iam_role.replication_role.name
+  policy_arn = aws_iam_policy.replication_policy.arn
+}
+
+# Automated Cross-Region Pipeline Rule Registration
+resource "aws_s3_bucket_replication_configuration" "crr" {
+  provider = aws.source_region
+  role     = aws_iam_role.replication_role.arn
+  bucket   = aws_s3_bucket.source.id
+
+  rule {
+    id     = "S3-CrossRegion-Replication-Pipeline"
+    status = "Enabled"
+
+    destination {
+      bucket        = aws_s3_bucket.destination.arn
+      storage_class = "STANDARD"
+    }
+  }
+  depends_on = [aws_s3_bucket_versioning.source_versioning]
+}
+
+# ----------------------------------------------------------------------------------------
+# 2. MICROSOFT AZURE COMPUTE, STORAGE, AND FIREWALL BOUNDARY INFRAPOOL
+# ----------------------------------------------------------------------------------------
+
+# Core Resource Group Workspace Isolation Envelope
+resource "azurerm_resource_group" "rg" {
+  name     = var.resource_group_name
+  location = var.resource_group_location
+}
+
+# Private Software-Defined Virtual Network Container
+resource "azurerm_virtual_network" "vnet" {
+  name                = var.name_vnet
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  address_space       = [var.vnet_address_space]
+}
+
+# Segmented Private Subnet Workload Allocation Zone
+resource "azurerm_subnet" "snet" {
+  name                 = var.subnet_name
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = [var.subnet_addressprefix]
+}
+
+# Stateful Network Security Group Access Control Rules
+resource "azurerm_network_security_group" "nsg" {
+  name                = var.NSG_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "Allow-RDP"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3389"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+# Stateful Firewall to Subnet Association Node
+resource "azurerm_subnet_network_security_group_association" "nsga" {
+  subnet_id                 = azurerm_subnet.snet.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+# Persistent Ingress Gateway Public IP Endpoint
+resource "azurerm_public_ip" "pubip" {
+  name                = var.PIP_name
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  allocation_method   = "Static"
+}
+
+# Virtual Network Interface Connection Hub Card
+resource "azurerm_network_interface" "nic" {
+  name                = var.NIC_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.snet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.pubip.id
+  }
+}
+
+# Windows Server Compute Engine Core Virtual Machine Instance
+resource "azurerm_windows_virtual_machine" "vm" {
+  name                  = var.VM_name
+  resource_group_name   = azurerm_resource_group.rg.name
+  location              = azurerm_resource_group.rg.location
+  size                  = var.vm_size
+  admin_username        = var.admin_user
+  admin_password        = var.admin_pass
+  network_interface_ids = [azurerm_network_interface.nic.id]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2016-Datacenter"
+    version   = "latest"
+  }
+}
+
+# Active Active Directory Client Runtime Parameter Context Lookup
+data "azurerm_client_config" "current" {}
+
+# Encrypted Key Vault Management Framework Perimeter
+resource "azurerm_key_vault" "kv-connect" {
+  name                       = var.keyvault
+  location                   = azurerm_resource_group.rg.location
+  resource_group_name        = azurerm_resource_group.rg.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false
+  sku_name                   = "standard"
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    key_permissions     = ["Get"]
+    secret_permissions  = ["Get"]
+    storage_permissions = ["Get"]
+  }
+}
+
+# Low-Cost Auditing Data Blob Storage Account Tier
+resource "azurerm_storage_account" "sa" {
+  name                     = var.storage_acc
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
