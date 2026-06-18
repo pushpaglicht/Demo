@@ -1,0 +1,97 @@
+# ========================================================================================
+# FILE: variables.tf
+# PURPOSE: Declarative Input Parameter Configurations and Default Matrices
+# ========================================================================================
+
+# ----------------------------------------------------------------------------------------
+# Azure Infrastructure Input Parameters
+# ----------------------------------------------------------------------------------------
+variable "resource_group_name" {
+  type        = string
+  description = "The logical encapsulation group name for all Azure resources."
+  default     = "amity-project-rg"
+}
+
+variable "resource_group_location" {
+  type        = string
+  description = "The target geographical data center coordinates for Azure deployments."
+  default     = "East US"
+}
+
+variable "name_vnet" {
+  type        = string
+  description = "The naming identifier for the software-defined private Virtual Network."
+  default     = "project-vnet"
+}
+
+variable "vnet_address_space" {
+  type        = string
+  description = "The wide-area private IP CIDR allocation block for the virtual network fabric."
+  default     = "10.0.0.0/16"
+}
+
+variable "subnet_name" {
+  type        = string
+  description = "The naming convention for the micro-segmented compute subnet tier."
+  default     = "project-subnet"
+}
+
+variable "subnet_addressprefix" {
+  type        = string
+  description = "The focused private IP subnet allocation boundary."
+  default     = "10.0.1.0/24"
+}
+
+variable "NSG_name" {
+  type        = string
+  description = "The tracking identifier for the stateful inbound access control firewall group."
+  default     = "project-nsg"
+}
+
+variable "NIC_name" {
+  type        = string
+  description = "The naming token for the virtual machine network interface card module."
+  default     = "project-nic"
+}
+
+variable "PIP_name" {
+  type        = string
+  description = "The entry gateway identifier assigned to the static Public IP endpoint."
+  default     = "project-public-ip"
+}
+
+variable "VM_name" {
+  type        = string
+  description = "The operating hostname for the core Windows Server virtual compute node."
+  default     = "ProjectWinVM"
+}
+
+variable "vm_size" {
+  type        = string
+  description = "The hardware performance tier sizing allocation profile."
+  default     = "Standard_B1s" # Free-tier eligible to prevent unexpected billing triggers
+}
+
+variable "admin_user" {
+  type        = string
+  description = "The administrative default username token for host system authentication."
+  default     = "azureuser"
+}
+
+variable "admin_pass" {
+  type        = string
+  description = "The high-entropy root authentication credential string for host login."
+  default     = "P@ssword12345!"
+}
+
+variable "keyvault" {
+  type        = string
+  description = "The globally unique identifier string for the encrypted secrets vault backend."
+  default     = "amity-kv-unique-12345"
+}
+
+variable "storage_acc" {
+  type        = string
+  description = "The lowercase, globally unique naming string for Azure archive logging structures."
+  default     = "amitysaunique12345"
+}
