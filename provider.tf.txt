@@ -1,0 +1,35 @@
+# ========================================================================================
+# FILE: providers.tf
+# PURPOSE: Multi-Cloud Provider Initialization and Semantic Version Constraints
+# ========================================================================================
+
+terraform {
+  required_version = ">= 1.0.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# Default Provider for Microsoft Azure Operations
+provider "azurerm" {
+  features {}
+}
+
+# Aliased Provider for AWS Primary Data Ingestion (Frankfurt)
+provider "aws" {
+  alias  = "source_region"
+  region = "eu-central-1"
+}
+
+# Aliased Provider for AWS Cross-Region Backup Replication (California)
+provider "aws" {
+  alias  = "destination_region"
+  region = "us-west-1"
+}
